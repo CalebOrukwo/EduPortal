@@ -18,6 +18,8 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $error = '';
+$fullName = '';
+$email = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fullName        = sanitizeInput($_POST['full_name'] ?? '');
@@ -42,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'An account with this email address already exists.';
         } else {
             try {
-                // Ensure PDO throws exceptions for easy debugging
                 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 $pdo->beginTransaction();
 
@@ -53,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $role = 'student';
 
                 $insertUserSql = "INSERT INTO sch_users (full_name, email, password, role, status) 
-                                 VALUES (:full_name, :email, :password, :role, 'active')";
+                                  VALUES (:full_name, :email, :password, :role, 'active')";
                 $userStmt = $pdo->prepare($insertUserSql);
                 $userStmt->execute([
                     ':full_name' => $fullName,
@@ -70,10 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lastName  = $nameParts[1] ?? 'Student';
                 $studentCode = generateStudentCode();
 
-                // Safely retrieve an active default class ID from DB instead of hardcoding 1
-                $classStmt = $pdo->query("SELECT id FROM sch_classes LIMIT 1");
-                $defaultClass = $classStmt->fetch();
-                $defaultClassId = $defaultClass ? $defaultClass['id'] : NULL;
+                // Set class to NULL explicitly (Student is unassigned upon signup)
+                $defaultClassId = null;
 
                 $insertStudentSql = "INSERT INTO sch_students (id, student_code, first_name, last_name, current_class_id, status) 
                                      VALUES (:id, :code, :first_name, :last_name, :class_id, 'active')";
@@ -97,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->rollBack();
                 }
                 error_log("Signup SQL Error: " . $e->getMessage());
-                // Displays explicit SQL error message directly for debugging
                 $error = 'Database Error: ' . $e->getMessage();
             } catch (Exception $e) {
                 if ($pdo->inTransaction()) {
@@ -131,12 +129,14 @@ require_once __DIR__ . '/includes/alerts.php';
             <div>
                 <label for="full_name" class="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
                 <input type="text" id="full_name" name="full_name" required placeholder="John Doe"
+                       value="<?php echo htmlspecialchars($fullName); ?>"
                        class="w-full px-4 py-2.5 bg-navy-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors">
             </div>
 
             <div>
                 <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
                 <input type="email" id="email" name="email" required placeholder="student@example.com"
+                       value="<?php echo htmlspecialchars($email); ?>"
                        class="w-full px-4 py-2.5 bg-navy-950 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors">
             </div>
 
